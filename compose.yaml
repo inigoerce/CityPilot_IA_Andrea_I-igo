@@ -24,7 +24,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-citypilot}:${POSTGRES_PASSWORD:-citypilot_local_solo_clase}@db:5432/${POSTGRES_DB:-citypilot}
     ports:
-      - "127.0.0.1:${WEB_PORT:-5000}:5000"
+      - "127.0.0.1:${WEB_PORT:-5001}:5000"
     volumes:
       - ./web:/app
       - ./fixtures:/fixtures:ro
@@ -41,7 +41,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-citypilot}:${POSTGRES_PASSWORD:-citypilot_local_solo_clase}@db:5432/${POSTGRES_DB:-citypilot}
       WEB_BASE_URL: http://web:5000
     ports:
-      - "127.0.0.1:${JUPYTER_PORT:-8888}:8888"
+      - "127.0.0.1:8889:8888"
     volumes:
       - ./notebooks:/workspace
       - ./fixtures:/fixtures:ro
