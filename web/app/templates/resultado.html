@@ -1,13 +1,85 @@
 {% extends "base.html" %}
 {% block title %}Mi ruta · CityPilot IA{% endblock %}
+
 {% block content %}
-<section class="hero"><span class="eyebrow">TU ITINERARIO</span><h1>Un día diferente</h1></section>
+<section class="hero">
+    <span class="eyebrow">TU ITINERARIO</span>
+    <h1>Tu día diferente</h1>
+</section>
+
 <section class="surface">
-  <!-- TODO(ALUMNADO): mostrar ciudad, tipo, temperatura, lluvia,
-       3-5 paradas, enlaces individuales a OSM si hay coordenadas,
-       tiempo estimado y texto generado por el modelo.
-       Si modo_demo: mostrar un aviso muy visible de DATOS SIMULADOS.
-       Si hay error: mostrar mensaje comprensible sin secretos. -->
-  <div class="todo">🛠️ Por implementar: resultado del planificador.</div>
+
+    {% if error %}
+        <h2>No se ha podido generar tu ruta</h2>
+        <p>{{ error }}</p>
+        <a href="/">Volver al planificador</a>
+
+    {% elif resultado %}
+
+        {% if resultado.modo_demo %}
+            <div class="todo">
+                ⚠️ DATOS SIMULADOS: se están utilizando lugares de demostración.
+            </div>
+        {% endif %}
+
+        <h2>{{ resultado.ciudad }} · {{ resultado.tipo_turismo }}</h2>
+
+        <p>
+            Duración del plan: {{ resultado.duracion_horas }} horas
+        </p>
+
+        <h3>🌤️ Meteorología actual</h3>
+        <p>
+            Temperatura: {{ resultado.meteorologia.temperatura_c }} °C
+        </p>
+        <p>
+            Precipitación: {{ resultado.meteorologia.precipitacion_mm }} mm
+        </p>
+        <p>
+            Código meteorológico: {{ resultado.meteorologia.codigo_tiempo }}
+        </p>
+
+        <h3>📍 Lugares recomendados</h3>
+
+        {% if resultado.lugares %}
+            <ol>
+                {% for lugar in resultado.lugares[:5] %}
+                    <li>
+                        <strong>{{ lugar.nombre }}</strong>
+                        {% if lugar.categoria %}
+                            — {{ lugar.categoria }}
+                        {% endif %}
+
+                        {% if lugar.lat is defined and lugar.lon is defined %}
+                            <br>
+                            <a
+                                href="https://www.openstreetmap.org/?mlat={{ lugar.lat }}&mlon={{ lugar.lon }}#map=17/{{ lugar.lat }}/{{ lugar.lon }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Ver en OpenStreetMap
+                            </a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            <p>No hay lugares disponibles.</p>
+        {% endif %}
+
+        <h3>🧠 Tu itinerario</h3>
+        <p>{{ resultado.itinerario }}</p>
+
+        <p>
+            <small>
+                Orden de visita orientativo. No constituye una ruta GPS
+                ni verifica horarios de apertura.
+            </small>
+        </p>
+
+        <a href="/">Crear otra ruta</a>
+
+    {% endif %}
+
 </section>
 {% endblock %}
