@@ -8,14 +8,42 @@
 </section>
 <section class="surface">
   <h2>Tu plan para hoy</h2>
-  <!-- TODO(ALUMNADO): construir aquí un formulario HTML real.
-       action="/planificar", method="POST".
-       Campos obligatorios: ciudad (texto), tipo_turismo (select con
-       cultural/gastronomica/naturaleza/familiar), duracion_horas (2,4,6).
-       Campo opcional: preferencias (textarea de 200 caracteres aprox.).
-       Botón submit. Etiquetas accesibles y validación básica HTML.
-       IMPORTANTE: no se proporciona el HTML del formulario. -->
-  <div class="todo">🛠️ <strong>Por implementar:</strong> formulario de preferencias y botón «Generar mi ruta».</div>
+  <form action="/planificar" method="POST">
+    <label for="ciudad">Ciudad:</label>
+    <input
+        type="text"
+        id="ciudad"
+        name="ciudad"
+        required
+        maxlength="80"
+        placeholder="Ej. Valencia"
+    >
+
+    <label for="tipo_turismo">Tipo de turismo:</label>
+    <select id="tipo_turismo" name="tipo_turismo" required>
+        <option value="cultural">Cultural</option>
+        <option value="gastronomica">Gastronómica</option>
+        <option value="naturaleza">Naturaleza</option>
+        <option value="familiar">Familiar</option>
+    </select>
+
+    <label for="duracion_horas">Duración:</label>
+    <select id="duracion_horas" name="duracion_horas" required>
+        <option value="2">2 horas</option>
+        <option value="4">4 horas</option>
+        <option value="6">6 horas</option>
+    </select>
+
+    <label for="preferencias">Preferencias adicionales:</label>
+    <textarea
+        id="preferencias"
+        name="preferencias"
+        maxlength="200"
+        placeholder="Cuéntanos qué te gustaría visitar..."
+    ></textarea>
+
+    <button type="submit">Generar mi ruta</button>
+</form>
 </section>
 <section class="three">
   <article class="tile"><h3>🌤️ Meteo</h3><p>El plan tendrá en cuenta el tiempo.</p></article>

@@ -1,5 +1,5 @@
-"""Rutas del servicio Flask. Esqueleto intencionalmente incompleto."""
-from flask import Flask, jsonify, render_template
+"""Rutas del servicio Flask."""
+from flask import Flask, jsonify, render_template, request, send_file
 from app.db import ping_db
 
 
@@ -8,9 +8,8 @@ def create_app():
 
     @app.get("/")
     def inicio():
-        # TODO(ALUMNADO): El formulario se desarrolla en templates/index.html.
         return render_template("index.html")
-
+    
     @app.get("/api/health")
     def health():
         # Punto de salud proporcionado para verificar Compose y PostgreSQL.
@@ -21,32 +20,118 @@ def create_app():
             return jsonify(servicio="citypilot", estado="degradado", db="error"), 503
 
     @app.post("/planificar")
+
     def planificar_html():
-        # TODO(ALUMNADO): leer y validar request.form; llamar a UN orquestador
-        # compartido con /api/planificar; renderizar resultado.html.
-        return "Pendiente: formulario -> integración -> resultado", 501
+        from app.orchestrator import procesar_solicitud
+
+        try:
+            ciudad = request.form.get("ciudad", "")
+            tipo_turismo = request.form.get("tipo_turismo", "")
+            duracion_horas = int(request.form.get("duracion_horas", 0))
+            preferencias = request.form.get("preferencias", "")
+
+            resultado = procesar_solicitud(
+                ciudad,
+                tipo_turismo,
+                duracion_horas,
+                preferencias
+            )
+
+            return render_template("resultado.html", resultado=resultado)
+
+        except ValueError as error:
+            return render_template("resultado.html", error=str(error)), 400
+        except Exception:
+            return render_template(
+                "resultado.html",
+                error="No se ha podido generar el itinerario. Inténtalo de nuevo."
+            ), 500
 
     @app.post("/api/planificar")
+
     def planificar_api():
-        # TODO(ALUMNADO): leer JSON, usar EL MISMO orquestador y devolver JSON.
-        # Nunca duplicar la lógica de datos externos en las dos rutas.
-        return jsonify(error="Pendiente: API propia"), 501
+        from app.orchestrator import procesar_solicitud
+
+        datos = request.get_json(silent=True) or {}
+
+        try:
+            resultado = procesar_solicitud(
+                datos.get("ciudad", ""),
+                datos.get("tipo_turismo", ""),
+                int(datos.get("duracion_horas", 0)),
+                datos.get("preferencias", "")
+            )
+            return jsonify(resultado)
+
+        except ValueError as error:
+            return jsonify(error=str(error)), 400
+        except Exception:
+            return jsonify(
+                error="No se ha podido generar el itinerario."
+            ), 500
 
     @app.get("/analitica")
     def analitica():
-        # TODO(ALUMNADO): consultar PostgreSQL y pasar métricas a la plantilla.
-        return render_template("analitica.html", totales=None, top_ciudades=[], ultimas=[])
+        from app.db import obtener_estadisticas, obtener_ultimas_solicitudes
+
+        try:
+            totales = obtener_estadisticas()
+            ultimas = obtener_ultimas_solicitudes(8)
+
+            return render_template(
+                "analitica.html",
+                totales=totales,
+                top_ciudades=totales.get("top_ciudades", []),
+                ultimas=ultimas
+            )
+        except Exception:
+            return render_template(
+                "analitica.html",
+                totales=None,
+                top_ciudades=[],
+                ultimas=[],
+                error="No se han podido cargar las estadísticas."
+            ), 500
 
     @app.get("/analitica/grafico.png")
     def grafico():
-        # TODO(ALUMNADO): generar una gráfica PNG de Matplotlib con datos SQL,
-        # utilizando un BytesIO y Flask send_file. No JavaScript.
-        return "Pendiente: gráfica de peticiones", 501
+        from io import BytesIO
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from app.db import obtener_estadisticas
+
+        estadisticas = obtener_estadisticas()
+        ciudades = estadisticas.get("top_ciudades", [])
+
+        nombres = [item["ciudad"] for item in ciudades]
+        cantidades = [item["total"] for item in ciudades]
+
+        figura, eje = plt.subplots()
+        eje.bar(nombres, cantidades)
+        eje.set_title("Solicitudes por ciudad")
+        eje.set_xlabel("Ciudad")
+        eje.set_ylabel("Número de solicitudes")
+        figura.tight_layout()
+
+        imagen = BytesIO()
+        figura.savefig(imagen, format="png")
+        imagen.seek(0)
+        plt.close(figura)
+
+        return send_file(imagen, mimetype="image/png")
 
     @app.get("/api/estadisticas")
     def estadisticas_api():
-        # TODO(ALUMNADO): exponer el resumen de la base de datos como JSON.
-        return jsonify(error="Pendiente: estadísticas"), 501
+        from app.db import obtener_estadisticas
+
+        try:
+            estadisticas = obtener_estadisticas()
+            return jsonify(estadisticas)
+        except Exception:
+            return jsonify(
+                error="No se han podido obtener las estadísticas."
+            ), 500
 
     return app
 
