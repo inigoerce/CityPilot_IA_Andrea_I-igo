@@ -1,6 +1,11 @@
 """Rutas del servicio Flask. Esqueleto intencionalmente incompleto."""
-from flask import Flask, jsonify, render_template
-from app.db import ping_db
+import io
+import matplotlib
+matplotlib.use("Agg")                      # sin ventana: genera imágenes en el servidor
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from flask import Flask, jsonify, render_template, send_file
+from app.db import ping_db, obtener_estadisticas, obtener_ultimas_solicitudes
 
 
 def create_app():
@@ -34,19 +39,44 @@ def create_app():
 
     @app.get("/analitica")
     def analitica():
-        # TODO(ALUMNADO): consultar PostgreSQL y pasar métricas a la plantilla.
-        return render_template("analitica.html", totales=None, top_ciudades=[], ultimas=[])
+        try:
+            stats = obtener_estadisticas()
+            ultimas = obtener_ultimas_solicitudes(8)
+            error = None
+        except Exception:
+            stats, ultimas = None, []
+            error = "No se pudo consultar PostgreSQL."
+        return render_template("analitica.html", stats=stats, ultimas=ultimas, error=error)
 
     @app.get("/analitica/grafico.png")
     def grafico():
-        # TODO(ALUMNADO): generar una gráfica PNG de Matplotlib con datos SQL,
-        # utilizando un BytesIO y Flask send_file. No JavaScript.
-        return "Pendiente: gráfica de peticiones", 501
+        try:
+            datos = obtener_estadisticas()["por_ciudad"]
+        except Exception:
+            return "No se pudo consultar PostgreSQL", 503
+        fig, ax = plt.subplots(figsize=(6, 3.5))
+        if datos:
+            ax.bar([d["ciudad"] for d in datos], [d["peticiones"] for d in datos])
+            ax.set_title("Peticiones por ciudad")
+            ax.set_ylabel("Peticiones")
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.tick_params(axis="x", rotation=30)
+        else:
+            ax.text(0.5, 0.5, "Sin datos todavía", ha="center", va="center")
+            ax.axis("off")
+        fig.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=120)
+        plt.close(fig)
+        buf.seek(0)
+        return send_file(buf, mimetype="image/png", max_age=0)
 
     @app.get("/api/estadisticas")
     def estadisticas_api():
-        # TODO(ALUMNADO): exponer el resumen de la base de datos como JSON.
-        return jsonify(error="Pendiente: estadísticas"), 501
+        try:
+            return jsonify(obtener_estadisticas())
+        except Exception:
+            return jsonify(error="No se pudo consultar PostgreSQL"), 503
 
     return app
 
