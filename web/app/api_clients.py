@@ -31,16 +31,62 @@ def obtener_meteorologia(lat: float, lon: float) -> dict:
     raise NotImplementedError("Implementa consulta meteorológica")
 
 
-def obtener_lugares(lat: float, lon: float, tipo: str) -> list[dict]:
-    """TODO(ALUMNADO).
+FILTROS_POR_TIPO = {
+    "cultural": {"tourism": ["museum", "attraction", "gallery"],
+                 "historic": ["monument", "castle", "memorial"]},
+    "gastronomica": {"amenity": ["restaurant", "cafe", "food_court"]},
+    "naturaleza": {"leisure": ["park", "garden"]},
+    "familiar": {"tourism": ["attraction", "zoo"],
+                 "leisure": ["park", "playground"]},
+}
 
-    Consultar un radio urbano acotado de Overpass/OSM (2-3 km).
-    Filtrar según tipo: cultural, gastronomica, naturaleza, familiar.
-    Normalizar a [{nombre, categoria, lat, lon, fuente, ...}], máximo
-    8-12 lugares. Gestionar nodos (lat/lon) y ways/relations (center).
-    Nunca introducir valores libres del usuario en una consulta QL.
-    """
-    raise NotImplementedError("Implementa consulta de puntos de interés")
+
+def _construir_consulta(lat: float, lon: float, tipo: str, radio: int = 2500) -> str:
+    filtros = FILTROS_POR_TIPO[tipo]
+    lat, lon = float(lat), float(lon)   # fuerza números: nada de texto raro en la consulta
+    lineas = []
+    for clave, valores in filtros.items():
+        patron = "|".join(valores)
+        lineas.append(f'  nwr["{clave}"~"^({patron})$"]["name"](around:{radio},{lat},{lon});')
+    return "[out:json][timeout:25];\n(\n" + "\n".join(lineas) + "\n);\nout center 60;"
+
+
+def _categoria(tags: dict) -> str:
+    for clave in ("tourism", "historic", "amenity", "leisure"):
+        if tags.get(clave):
+            return tags[clave]
+    return "otro"
+
+
+def obtener_lugares(lat: float, lon: float, tipo: str) -> list[dict]:
+    if tipo not in FILTROS_POR_TIPO:
+        raise ValueError(f"Tipo de turismo no válido: {tipo}")
+    consulta = _construir_consulta(lat, lon, tipo)
+    r = requests.post(OVERPASS_URL, data={"data": consulta}, timeout=30,
+                      headers={"User-Agent": "CityPilotIA-clase/1.0"})
+    r.raise_for_status()
+    elementos = r.json().get("elements", [])
+
+    lugares, vistos = [], set()
+    for el in elementos:
+        tags = el.get("tags", {})
+        nombre = tags.get("name")
+        if not nombre or nombre in vistos:
+            continue
+        if el.get("type") == "node":
+            plat, plon = el.get("lat"), el.get("lon")
+        else:                                   # way / relation: usan el centro
+            centro = el.get("center") or {}
+            plat, plon = centro.get("lat"), centro.get("lon")
+        if plat is None or plon is None:
+            continue
+        vistos.add(nombre)
+        lugares.append({"nombre": nombre, "categoria": _categoria(tags),
+                        "lat": float(plat), "lon": float(plon),
+                        "fuente": "OpenStreetMap", "demo": False})
+        if len(lugares) >= 12:
+            break
+    return lugares
 
 
 def cargar_fixture_lugares() -> list[dict]:
