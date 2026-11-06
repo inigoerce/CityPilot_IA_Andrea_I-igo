@@ -18,7 +18,23 @@ def geocodificar(ciudad: str) -> dict:
     Restricción: peticiones con timeout, filtrando countryCode='ES' si se
     decide limitar a España.
     """
-    raise NotImplementedError("Implementa búsqueda de coordenadas")
+    params = {"name":ciudad,  "countryCode":"ES"}
+
+    respuesta = requests.get(GEO_URL, params=params, timeout=8)
+    respuesta.raise_for_status()
+
+    datos = respuesta.json()
+    resultados = datos.get("results", [])
+
+    if not resultados:
+        raise ValueError("No se ha encontrado la ciudad.")
+
+    resultado = resultados[0]
+
+    return {"ciudad": resultado["name"],
+            "pais": resultado["country"],
+            "lat": float(resultado["latitude"]),
+            "lon":float(resultado["longitude"])}
 
 
 def obtener_meteorologia(lat: float, lon: float) -> dict:
@@ -28,7 +44,18 @@ def obtener_meteorologia(lat: float, lon: float) -> dict:
     codigo_tiempo, instante. Seleccionar current=temperature_2m,
     precipitation,weather_code e incluir timezone=auto.
     """
-    raise NotImplementedError("Implementa consulta meteorológica")
+    params = {"latitude":lat,  "longitude":lon, "current":"temperature_2m,precipitation,weather_code", "timezone":"auto"}
+
+    respuesta = requests.get(METEO_URL, params=params, timeout=8)
+    respuesta.raise_for_status()
+
+    datos = respuesta.json()
+    actual = datos["current"]
+
+    return {"temperatura_c": actual["temperature_2m"],
+            "precipitacion_mm": actual["precipitation"],
+            "codigo_tiempo": actual["weather_code"],
+            "instante":actual["time"]}
 
 
 FILTROS_POR_TIPO = {
